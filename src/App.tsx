@@ -15,7 +15,11 @@ import {
   Layers,
   Activity,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ActionType, ActionConfig, Frame, GameParams } from './types';
@@ -141,13 +145,15 @@ export default function App() {
 
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [gameParams, setGameParams] = useState<GameParams>({
     walkSpeed: 4,
     runSpeed: 8,
     jumpVelocity: -15,
     gravity: 0.8,
     charScale: 1,
-    horizonOffset: 0
+    horizonOffset: 60
   });
 
   // Character State
@@ -160,6 +166,7 @@ export default function App() {
   const isRunJumpRef = useRef(false);
   const gameParamsRef = useRef(gameParams);
   const actionsRef = useRef(actions);
+  const gameContainerRef = useRef<HTMLDivElement>(null);
 
   const [charPos, setCharPos] = useState({ x: 0, y: 0 });
   const [charVel, setCharVel] = useState({ x: 0, y: 0 });
@@ -352,6 +359,16 @@ export default function App() {
       charPosRef.current.x += charVelRef.current.x * timeScale;
       charPosRef.current.y += charVelRef.current.y * timeScale;
 
+      // Screen clamping
+      if (gameContainerRef.current) {
+        const rect = gameContainerRef.current.getBoundingClientRect();
+        const halfWidth = rect.width / 2;
+        // Clamp charPosRef.current.x between -halfWidth and halfWidth
+        // We can add a small margin so the character doesn't disappear completely
+        const margin = 20; 
+        charPosRef.current.x = Math.max(-halfWidth + margin, Math.min(halfWidth - margin, charPosRef.current.x));
+      }
+
       // Ground check
       if (charPosRef.current.y >= 0) {
         charPosRef.current.y = 0;
@@ -477,16 +494,21 @@ export default function App() {
     }
 
     if (displayFrames.length === 0) {
+      const pw = 150;
+      const ph = 200;
       const placeholder = (
         <div 
           className="border-2 border-orange-500 border-dashed rounded-sm" 
-          style={{ width: 150, height: 200 }}
+          style={{ width: pw, height: ph }}
         />
       );
       if (fixedSize) {
+        const s = (fixedSize / Math.max(pw, ph)) * 0.7; // Scale down to 70% of available space
         return (
           <div className="relative flex items-center justify-center overflow-hidden" style={{ width: fixedSize, height: fixedSize }}>
-            {placeholder}
+            <div style={{ transform: `scale(${s})`, transformOrigin: 'center' }}>
+              {placeholder}
+            </div>
           </div>
         );
       }
@@ -538,19 +560,32 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#0a0a0c] text-zinc-300 font-sans selection:bg-emerald-500/30 select-none">
       {/* --- Left Sidebar: Action List --- */}
-      <div className="w-64 border-r border-white/5 flex flex-col bg-[#0f0f12]">
-        <div className="p-6 border-bottom border-white/5">
-          <h1 className="text-xl font-bold tracking-tighter text-white flex items-center gap-2">
+      <motion.div 
+        initial={false}
+        animate={{ width: isLeftSidebarOpen ? 256 : 0 }}
+        className="border-r border-white/5 flex flex-col bg-[#0f0f12] overflow-hidden relative"
+      >
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <h1 className="text-xl font-bold tracking-tighter text-white flex items-center gap-2 whitespace-nowrap">
             <Activity className="w-5 h-5 text-emerald-500" />
             RIKA PLAYGROUND
           </h1>
+          <button 
+            onClick={() => setIsLeftSidebarOpen(false)}
+            className="p-1 hover:bg-white/5 rounded text-zinc-500 hover:text-white transition-colors"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="w-64 flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
           {INITIAL_ACTIONS.map(type => (
             <div 
               key={type}
-              onClick={() => setSelectedAction(type)}
+              onClick={() => {
+                setSelectedAction(type);
+                setIsRightSidebarOpen(true);
+              }}
               className={`group cursor-pointer rounded-xl border p-3 transition-all ${
                 selectedAction === type 
                   ? 'bg-emerald-500/10 border-emerald-500/50' 
@@ -615,10 +650,28 @@ export default function App() {
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* --- Main Area --- */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
+        {/* Sidebar Toggle Buttons (when closed) */}
+        {!isLeftSidebarOpen && (
+          <button 
+            onClick={() => setIsLeftSidebarOpen(true)}
+            className="absolute top-8 left-8 z-50 p-3 bg-[#0a0a0c] border border-white/10 rounded-xl text-zinc-400 hover:text-white shadow-xl transition-all hover:scale-105"
+          >
+            <PanelLeftOpen className="w-6 h-6" />
+          </button>
+        )}
+        {!isRightSidebarOpen && (
+          <button 
+            onClick={() => setIsRightSidebarOpen(true)}
+            className="absolute top-8 right-8 z-50 p-3 bg-[#0a0a0c] border border-white/10 rounded-xl text-zinc-400 hover:text-white shadow-xl transition-all hover:scale-105"
+          >
+            <PanelRightOpen className="w-6 h-6" />
+          </button>
+        )}
+
         <AnimatePresence mode="wait">
           {selectedAction ? (
             /* --- Sprite Editor View --- */
@@ -631,7 +684,10 @@ export default function App() {
             >
               <div className="flex items-center gap-4 mb-8">
                 <button 
-                  onClick={() => setSelectedAction(null)}
+                  onClick={() => {
+                    setSelectedAction(null);
+                    setIsRightSidebarOpen(false);
+                  }}
                   className="p-2 hover:bg-white/10 rounded-xl transition-colors text-zinc-400 hover:text-white"
                 >
                   <ChevronRight className="w-6 h-6 rotate-180" />
@@ -715,6 +771,7 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              ref={gameContainerRef}
               className="flex-1 relative bg-[#050507]"
             >
               {/* Game Map Background */}
@@ -795,10 +852,25 @@ export default function App() {
       </div>
 
       {/* --- Right Sidebar: Parameters --- */}
-      <div className="w-80 border-l border-white/5 bg-[#0f0f12] p-6 flex flex-col gap-8">
-        {selectedAction ? (
-          /* Editor Controls */
-          <div className="space-y-8">
+      <motion.div 
+        initial={false}
+        animate={{ width: isRightSidebarOpen ? 320 : 0 }}
+        className="border-l border-white/5 bg-[#0f0f12] overflow-hidden relative"
+      >
+        <div className="w-80 h-full p-6 flex flex-col gap-8 overflow-y-auto scrollbar-hide">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white">Parameters</h2>
+            <button 
+              onClick={() => setIsRightSidebarOpen(false)}
+              className="p-1 hover:bg-white/5 rounded text-zinc-500 hover:text-white transition-colors"
+            >
+              <PanelRightClose className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {selectedAction ? (
+            /* Editor Controls */
+            <div className="space-y-8">
             <section>
               <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
                 <Upload className="w-4 h-4" /> Sprite Sheet
@@ -972,6 +1044,7 @@ export default function App() {
           </div>
         )}
       </div>
+    </motion.div>
     </div>
   );
 }
