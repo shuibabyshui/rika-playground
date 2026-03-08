@@ -255,7 +255,7 @@ export default function App() {
   const bgDimensionsRef = useRef({ width: 0, height: 0 });
   const [cameraX, setCameraX] = useState(0);
   const cameraXRef = useRef(0);
-  const [currentBg, setCurrentBg] = useState('bg3.png');
+  const [currentBg, setCurrentBg] = useState('bg1.png');
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
   const [language, setLanguage] = useState<'en' | 'zh'>('en');
   const [starCount, setStarCount] = useState<number | null>(null);
@@ -1283,7 +1283,7 @@ export default function App() {
                 <ImageIcon className="w-4 h-4" /> {t.backgroundSelection}
               </h3>
               <div className="grid grid-cols-3 gap-2">
-                {['bg2.png', 'bg3.png', 'bg4.png'].map(bg => (
+                {['bg1.png', 'bg2.png', 'bg3.png', 'bg4.png'].map(bg => (
                   <button 
                     key={bg}
                     onClick={() => setCurrentBg(bg)}
