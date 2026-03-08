@@ -348,15 +348,35 @@ export default function App() {
     // 2. Update Editor Animation (Respects isPlaying)
     if (selectedAction && isPlaying) {
       const editorConfig = actionsRef.current[selectedAction];
-      const editorActiveFrames = editorConfig.frames.slice(0, editorConfig.maxFrames).filter(f => !f.masked);
+      const frames = editorConfig.frames.slice(0, editorConfig.maxFrames);
+      const editorActiveFrames = frames.filter(f => !f.masked);
 
       if (editorActiveFrames.length > 0) {
+        // Ensure current index is not masked
+        if (frames[editorFrameIndex]?.masked) {
+          let next = editorFrameIndex;
+          let attempts = 0;
+          while (frames[next].masked && attempts < frames.length) {
+            next = (next + 1) % frames.length;
+            attempts++;
+          }
+          setEditorFrameIndex(next);
+        }
+
         const editorFrameDuration = 1000 / editorConfig.fps;
         editorFrameAccumulator.current += delta;
 
         if (editorFrameAccumulator.current >= editorFrameDuration) {
           editorFrameAccumulator.current = 0;
-          setEditorFrameIndex(prev => (prev + 1) % editorActiveFrames.length);
+          setEditorFrameIndex(prev => {
+            let next = (prev + 1) % frames.length;
+            let attempts = 0;
+            while (frames[next].masked && attempts < frames.length) {
+              next = (next + 1) % frames.length;
+              attempts++;
+            }
+            return next;
+          });
         }
       }
     }
@@ -723,7 +743,7 @@ export default function App() {
       <motion.div 
         initial={false}
         animate={{ width: isLeftSidebarOpen ? 300 : 0 }}
-        className="border-r border-white/5 flex flex-col bg-[#150a20]/90 backdrop-blur-md overflow-hidden relative z-10"
+        className="border-r border-white/5 flex flex-col bg-[#150a20]/95 backdrop-blur-md overflow-hidden relative z-10"
       >
         <div className="p-6 border-b border-white/5 flex items-center justify-between gap-8">
           <h1 className="text-xl font-bold tracking-tighter text-white flex items-center gap-2 whitespace-nowrap">
@@ -891,7 +911,7 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex-1 flex flex-col p-8"
+              className="flex-1 flex flex-col p-8 bg-[#0a0510]/40 backdrop-blur-sm"
             >
               <div className="flex items-center gap-4 mb-8">
                 <button 
@@ -910,7 +930,7 @@ export default function App() {
               </div>
 
               {/* Editor Main Preview */}
-              <div className="flex-1 bg-black/40 rounded-2xl border border-white/5 flex items-center justify-center relative overflow-hidden group">
+              <div className="flex-1 bg-black/80 rounded-2xl border border-white/5 flex items-center justify-center relative overflow-hidden group">
                 <div className="absolute inset-0 opacity-20 pointer-events-none" 
                   style={{ 
                     backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', 
@@ -928,7 +948,7 @@ export default function App() {
                   <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-500">{t.frameSequence}</h3>
                   <span className="text-xs font-mono text-zinc-600">{actions[selectedAction].frames.length} {t.totalFrames}</span>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                <div className="flex gap-3 overflow-x-auto pb-4 custom-scrollbar">
                   {actions[selectedAction].frames.slice(0, actions[selectedAction].maxFrames).map((frame, idx) => (
                     <div 
                       key={frame.id}
@@ -1073,7 +1093,7 @@ export default function App() {
       <motion.div 
         initial={false}
         animate={{ width: isRightSidebarOpen ? 320 : 0 }}
-        className="border-l border-white/5 bg-[#150a20]/90 backdrop-blur-md overflow-hidden relative z-10"
+        className="border-l border-white/5 bg-[#150a20]/95 backdrop-blur-md overflow-hidden relative z-10"
       >
         <div className="w-80 h-full p-6 flex flex-col gap-8 overflow-y-auto scrollbar-hide">
           <div className="flex items-center justify-between">
